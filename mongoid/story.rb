@@ -103,4 +103,10 @@ class Story
   field :el_tease_photo
   field :el_update_date
   field :el_updated
+
+  #objects 
+  def bylines
+
+  end
+
 end
