@@ -1,0 +1,43 @@
+class Threadedcomment
+  include Mongoid::Document
+  store_in collection: :threadedcomment
+  field :el_comment
+  field :el_comment_ptr_comment
+  field :el_comment_ptr_content_type_name
+  field :el_comment_ptr_id
+  field :el_comment_ptr_ip_address
+  field :el_comment_ptr_is_public
+  field :el_comment_ptr_is_removed
+  field :el_comment_ptr_object_pk
+  field :el_comment_ptr_site_domain
+  field :el_comment_ptr_submit_date
+  field :el_comment_ptr_user_email
+  field :el_comment_ptr_user_name
+  field :el_comment_ptr_user_url
+  field :el_content_type_name
+  field :el_id
+  field :el_ip_address
+  field :el_is_public
+  field :el_is_removed
+  field :el_object_pk
+  field :el_parent_pk
+  field :el_site_domain
+  field :el_submit_date
+  field :el_title
+  field :el_tree_path
+  field :el_user_date_joined
+  field :el_user_email
+  field :el_user_first_name
+  field :el_user_groups_1_name
+  field :el_user_groups_2_name
+  field :el_user_id
+  field :el_user_is_active
+  field :el_user_is_staff
+  field :el_user_is_superuser
+  field :el_user_last_login
+  field :el_user_last_name
+  field :el_user_name
+  field :el_user_password
+  field :el_user_url
+  field :el_user_username
+end
