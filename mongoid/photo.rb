@@ -28,4 +28,15 @@ class Photo
   field :el_status
   field :el_user_generated
   field :el_width
+
+  def bylines
+    first_name = el_photographer_first_name || ""
+    last_name = el_photographer_last_name || ""
+
+    unless first_name.empty? && last_name.empty?
+      [ { :first_name => first_name.strip, :last_name => last_name.strip } ]
+    else
+      []
+    end
+  end
 end

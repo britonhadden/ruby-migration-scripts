@@ -1,4 +1,5 @@
 class Story
+  @@MAX_NUM_BYLINES = 8 
   include Mongoid::Document
   store_in collection: :story
   field :el_bylines_1_first_name
@@ -103,10 +104,30 @@ class Story
   field :el_tease_photo
   field :el_update_date
   field :el_updated
-
-  #objects 
+  
   def bylines
+    #build an array of bylines calls and then remove all the nils
+    (1..@@MAX_NUM_BYLINES).inject([]) { |init,indx| init << get_byline(indx) }.compact
+  end
 
+  def get_byline(n)
+    #returns an author hash of el_bylines_n_*
+    field_prefix = "el_bylines_#{n}_"
+    #get the field values at n, setting them to empty if they're not there
+    first_name = self.send( field_prefix + "first_name") || ""
+    last_name = self.send( field_prefix + "last_name") || ""
+    #if bylinenotfound is in there, don't return it
+    no_byline = (first_name + last_name).gsub(" ","").downcase.include?("bylinenotfound")
+
+    unless (first_name.empty? && last_name.empty?) || no_byline 
+      #remove bad WEEKEND formatting
+      first_name.gsub!("// by","")
+      last_name.gsub!("// by","")
+
+      { :first_name => first_name.strip, :last_name => last_name.strip }
+    else
+      nil
+    end
   end
 
 end

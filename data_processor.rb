@@ -1,4 +1,5 @@
 require File.expand_path(File.join( 'config','environment.rb') )
+require 'set'
 
 class DataProcessor
   include Singleton
@@ -23,8 +24,8 @@ class DataProcessor
     #merges data from the Ellington users, stories, photos, and videos, collections to generate
     #a wp_users collection.
     #
-    #the data types with generated usernames must all respond to "authors" which will return an array of author
-    #hashes with :fname and :lname specified
+    #the data types with generated usernames must all respond to "bylines" which will return an array of author
+    #hashes with :first_name and :last_name specified
     
     #first step is to build the real users in our wp_user collection
     print_header "Importing true users"
@@ -46,6 +47,34 @@ class DataProcessor
       i += 1
       print_record_count i
     end
+
+    #now for the harder part, build a bunch of "fake" users based on the bylines we have
+    #we need to uniqueify out bylines first
+    unique_bylines = Set.new 
+    
+    #we're going to do the same thing to Users, Videos, and Photos, so build one proc to be reused
+    byline_grabber = Proc.new do |obj|
+      obj.bylines.each { |byline| unique_bylines << byline }
+    end
+
+    print_header "Building unique author names"
+    Video.each(&byline_grabber)
+    Story.each(&byline_grabber)
+    Photo.each(&byline_grabber)
+
+    print_header "Importing those authors" 
+    #now actually build these guys
+    unique_bylines.each do |u| 
+      wp_u = WPUser.new
+      wp_u.true_user = false
+      wp_u.first_name = u[:first_name]
+      wp_u.last_name = u[:last_name]
+
+      wp_u.save!
+      i += 1
+      print_record_count i
+    end
+
   end
 end
 

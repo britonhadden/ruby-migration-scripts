@@ -37,4 +37,30 @@ class Video
   field :el_videographer_last_name
   field :el_videographer_records_audioclips
   field :el_width
+
+  def bylines
+    out = []
+    if el_videographer_first_name || el_videographer_last_name
+      out << { :first_name => el_videographer_first_name.strip,
+               :last_name => el_videographer_last_name.strip }
+    end
+
+    if el_one_off_videographer
+      #sometimes this field separates authors with "and" and sometimes with ","
+      names = el_one_off_videographer.split(/( and |,)/)
+      names.reject! { |obj| obj.include?(" and ") || obj.include?(",") }
+
+      names.map do |name|
+        split_name = name.split(" ") #separate first and last name --> inexact
+
+        first_name = split_name.shift #put the first index in first name
+        last_name = split_name.join(" ") #assume the rest is a last name
+
+        out << { :first_name => first_name.strip,
+                 :last_name => last_name.strip }
+      end
+     end
+
+    out.compact #prune any nils
+  end
 end
