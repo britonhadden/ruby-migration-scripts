@@ -105,6 +105,8 @@ class Story
   field :el_tease_photo
   field :el_update_date
   field :el_updated
+  field :wp_categories, type: Array, default: []
+  field :wp_site, type: String, default: "main"
   
   def bylines
     #build an array of bylines calls and then remove all the nils

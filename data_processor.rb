@@ -1,4 +1,5 @@
 require File.expand_path(File.join( 'config','environment.rb') )
+require File.expand_path(File.join( 'tables', 'categories.rb') )
 require 'set'
 
 class DataProcessor
@@ -9,7 +10,8 @@ class DataProcessor
   #ready to run the PHP importer against the database.
   
   def process!
-    build_complete_users_table
+    #build_complete_users_table
+    load_wp_categories
   end
 
   def print_header(val)
@@ -75,6 +77,34 @@ class DataProcessor
       print_record_count i
     end
 
+  end
+
+  def load_wp_categories
+    print_header "Inserting WP  categories from hash table"
+    i = 0
+    Story.each do |s|
+      s.wp_categories = [] #clear out anything there
+      s.wp_site = "main"
+
+      s.categories.each do |cat|
+        
+        if CATEGORY_TABLE[cat]
+          s.wp_categories << CATEGORY_TABLE[cat] #add categories one by one to the array
+          s.wp_site = CATEGORY_TABLE[cat].last #if cats conflict in their site we're not resolving it...
+        end
+
+        if cat.downcase.gsub(" ","").include?("scene")
+          s.wp_categories << [ "tag", "Scene", "main" ]
+        end
+
+      end
+
+      s.wp_categories.compact!
+      s.save!
+
+      i += 1
+      print_record_count i
+    end
   end
 end
 
