@@ -1,5 +1,6 @@
 class Story
   @@MAX_NUM_BYLINES = 8 
+  @@MAX_NUM_CATEGORIES = 12
   include Mongoid::Document
   store_in collection: :story
   field :el_bylines_1_first_name
@@ -129,5 +130,13 @@ class Story
       nil
     end
   end
+
+  def categories
+    out = (1..@@MAX_NUM_CATEGORIES).inject([]) do |init,indx| 
+      init <<  self.send( "el_categories_#{indx}_path" )
+    end
+    out.compact
+  end
+
 
 end
