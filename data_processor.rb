@@ -1,6 +1,7 @@
 require File.expand_path(File.join( 'config','environment.rb') )
 require File.expand_path(File.join( 'tables', 'categories.rb') )
 require 'set'
+require 'nokogiri'
 
 class DataProcessor
   include Singleton
@@ -8,11 +9,11 @@ class DataProcessor
   #
   #It should be possible to run the DataProcessor on a raw Ellington dump and then be immediately
   #ready to run the PHP importer against the database.
-  
+
+
   def process!
-    #build_complete_users_table
-   # load_wp_categories
-    process_lead_photos
+   # build_complete_users_table
+     run_main_story_loop
   end
 
   def print_header(val)
@@ -29,6 +30,9 @@ class DataProcessor
     #
     #the data types with generated usernames must all respond to "bylines" which will return an array of author
     #hashes with :first_name and :last_name specified
+    #
+    #this function loops through ALL the objects individually so that the set can be built up in memory once
+    #and wont have to span multiple functions etc
     
     #first step is to build the real users in our wp_user collection
     print_header "Importing true users"
@@ -80,76 +84,104 @@ class DataProcessor
 
   end
 
-  def load_wp_categories
+  def run_main_story_loop
+    #a lot of things must happen on each story object and are relatively self contained (e.g.
+    #the action on one story doesn't impact the action on any other story). So we do these in one
+    #loop to cut down on the number of queries we run
+    print_header "Running main story loop"
+
+    i = 0 
+    Story.each do |s|
+#      load_wp_categories s
+#      process_lead_photos s
+      transform_inlines s
+      
+      s.save!
+      i += 1
+      print_record_count i
+    end
+  end
+
+  def load_wp_categories(s)
     #uses the mapping defined in tables/categories.rb to populate the
     #story.wp_categories and story.wp_site fields. 
-    print_header "Inserting WP  categories from hash table"
-    i = 0 
+    #
+    #s -- a story object
+    s.wp_categories = [] #clear out anything there
+    s.wp_site = "main" #default to main
 
-    Story.each do |s|
-      s.wp_categories = [] #clear out anything there
-      s.wp_site = "main" #default to main
+    cat_list = Set.new #want to store tehse uniquely
 
-      cat_list = Set.new #want to store tehse uniquely
-
-      s.categories.each do |el_cat|
-        wp_cats = CATEGORY_TABLE[el_cat] 
-        next if wp_cats.nil?
-        
-        unless wp_cats.first.is_a? Array
-          #if we don't get a nested array out, wrap the value in an array
-          #when I built the table I neglected the complexities that would arise from having some w/ a nested
-          #structure and others without. this fixes that
-          wp_cats = [ wp_cats ]
-        end
-        
-        wp_cats.each do |wp_cat|
-          #since el_cats might resolve to multiple wp_cats, we need an inner loop
-          cat_list << wp_cat #add categories one by one to the array
-          s.wp_site = wp_cat.last unless wp_cat.empty?
+    s.categories.each do |el_cat|
+      wp_cats = CATEGORY_TABLE[el_cat] 
+      next if wp_cats.nil?
+      
+      unless wp_cats.first.is_a? Array
+        #if we don't get a nested array out, wrap the value in an array
+        #when I built the table I neglected the complexities that would arise from having some w/ a nested
+        #structure and others without. this fixes that
+        wp_cats = [ wp_cats ]
+      end
+      
+      wp_cats.each do |wp_cat|
+        #since el_cats might resolve to multiple wp_cats, we need an inner loop
+        cat_list << wp_cat #add categories one by one to the array
+        s.wp_site = wp_cat.last unless wp_cat.empty?
 
 
-          if wp_cat[1].downcase.gsub(" ","").include?("scene")
-            cat_list << [ "tag", "Scene", "weekend" ]
-          end
+        if wp_cat[1].downcase.gsub(" ","").include?("scene")
+          cat_list << [ "tag", "Scene", "weekend" ]
         end
       end
-
-      s.wp_categories = cat_list.to_a.compact
-      s.save!
-
-      i += 1
-      print_record_count i
     end
+
+    s.wp_categories = cat_list.to_a.compact
   end
 
-  def process_lead_photos
+  def process_lead_photos(s)
     #we need to mark lead photos as used and set up which sites they should import to
     #Since multiple stories might use the same photo, they might need to be imported multiple times
-    print_header "Processing Lead Photos"
+    #
+    #s -- a story object
+    unless s.el_lead_photo_id.nil?
+      lead_photo = Photo.where(el_id: s.el_lead_photo_id).first
+      
+      #mark that its used in this story's site
+      lead_photo.wp_sites ||= []
+      lead_photo.wp_sites << s.wp_site
 
-    i = 0
-    Story.each do |s|
-      unless s.el_lead_photo_id.nil?
-        lead_photo = Photo.where(el_id: s.el_lead_photo_id).first
-        
-        #mark that its used in this story's site
-        lead_photo.wp_sites ||= []
-        lead_photo.wp_sites << s.wp_site
+      #mark that it's used in this story
+      lead_photo.used_in ||= []
+      lead_photo.used_in << s.el_id
 
-        #mark that it's used in this story
-        lead_photo.used_in ||= []
-        lead_photo.used_in << s.el_id
-
-        lead_photo.save!
-      end
-
-      i += 1
-
-      print_record_count i
+      lead_photo.save!
     end
   end
 
+  def transform_inlines(s)
+    parsed = Nokogiri::HTML::DocumentFragment.parse s.el_story
+    inlines =  parsed.css("inline")
+    
+    return if inlines.empty?
+
+    inlines.each do |inline|
+      puts inline.keys
+    end
+
+    puts "\n"
+
+  end
+
+end
+
+class InlineRenderer
+  def initialize(obj)
+
+  end
+
+  def new_format
+
+  end
 end
 
 DataProcessor.instance.process!
