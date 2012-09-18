@@ -11,8 +11,8 @@ class DataProcessor
   
   def process!
     #build_complete_users_table
-   # load_wp_categories
-    process_lead_photos
+    #load_wp_categories
+    set_photo_sites
   end
 
   def print_header(val)
@@ -84,38 +84,26 @@ class DataProcessor
     #uses the mapping defined in tables/categories.rb to populate the
     #story.wp_categories and story.wp_site fields. 
     print_header "Inserting WP  categories from hash table"
-    i = 0 
+    i = 0
 
     Story.each do |s|
       s.wp_categories = [] #clear out anything there
       s.wp_site = "main" #default to main
 
-      cat_list = Set.new #want to store tehse uniquely
-
-      s.categories.each do |el_cat|
-        wp_cats = CATEGORY_TABLE[el_cat] 
-        next if wp_cats.nil?
+      s.categories.each do |cat|
         
-        unless wp_cats.first.is_a? Array
-          #if we don't get a nested array out, wrap the value in an array
-          #when I built the table I neglected the complexities that would arise from having some w/ a nested
-          #structure and others without. this fixes that
-          wp_cats = [ wp_cats ]
+        if CATEGORY_TABLE[cat]
+          s.wp_categories << CATEGORY_TABLE[cat] #add categories one by one to the array
+          s.wp_site = CATEGORY_TABLE[cat].last #if cats conflict in their site we're not resolving it...
         end
-        
-        wp_cats.each do |wp_cat|
-          #since el_cats might resolve to multiple wp_cats, we need an inner loop
-          cat_list << wp_cat #add categories one by one to the array
-          s.wp_site = wp_cat.last unless wp_cat.empty?
 
-
-          if wp_cat[1].downcase.gsub(" ","").include?("scene")
-            cat_list << [ "tag", "Scene", "weekend" ]
-          end
+        if cat.downcase.gsub(" ","").include?("scene")
+          s.wp_categories << [ "tag", "Scene", "main" ]
         end
+
       end
 
-      s.wp_categories = cat_list.to_a.compact
+      s.wp_categories.compact!
       s.save!
 
       i += 1
@@ -123,33 +111,7 @@ class DataProcessor
     end
   end
 
-  def process_lead_photos
-    #we need to mark lead photos as used and set up which sites they should import to
-    #Since multiple stories might use the same photo, they might need to be imported multiple times
-    print_header "Processing Lead Photos"
-
-    i = 0
-    Story.each do |s|
-      unless s.el_lead_photo_id.nil?
-        lead_photo = Photo.where(el_id: s.el_lead_photo_id).first
-        
-        #mark that its used in this story's site
-        lead_photo.wp_sites ||= []
-        lead_photo.wp_sites << s.wp_site
-
-        #mark that it's used in this story
-        lead_photo.used_in ||= []
-        lead_photo.used_in << s.el_id
-
-        lead_photo.save!
-      end
-
-      i += 1
-
-      print_record_count i
-    end
-  end
-
+  d
 end
 
 DataProcessor.instance.process!

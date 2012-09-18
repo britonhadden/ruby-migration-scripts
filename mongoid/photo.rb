@@ -28,6 +28,8 @@ class Photo
   field :el_status
   field :el_user_generated
   field :el_width
+  field :wp_sites, type: Array, default: []
+  field :used_in, type: Array, default: []
 
   def bylines
     first_name = el_photographer_first_name || ""
