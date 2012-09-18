@@ -165,7 +165,7 @@ class DataProcessor
     return if inlines.empty?
 
     inlines.each do |inline|
-      puts inline.keys
+      puts inline["type"]
     end
 
     puts "\n"
