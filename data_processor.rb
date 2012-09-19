@@ -195,7 +195,7 @@ class InlineRenderer
 
   def new_node
     begin
-      send("render_#{@type}")
+      send("render_#{@type}") if @type
     rescue NoMethodError
       puts "Warning: no renderer for #{@type} \n" unless @@SUPPRESS_WARNINGS
       nil
@@ -219,18 +219,20 @@ class InlineRenderer
   end
 
   def generate_node_from_youtube_url(url)
-      id_regex = /v=(\w|-)*/
-      id = id_regex.match(url)[0]
+      id_regex = /v=((\w|-)*)/
+      id = id_regex.match(url)
 
       if id.nil?
-        alt_id_regex = /\/v\/(\w)*\?/
-        id = al_id_regex.match(url)[0]
+        alt_id_regex = /v\/((\w)*)\??/
+        id = alt_id_regex.match(url)
       end
 
       if id.nil?
         puts "Warning: unable to parse #{url}" unless @@SUPPRESS_WARNINGS
         return nil
       end
+
+      id =  id.to_a[1]
 
       output_node = Nokogiri::XML::Node.new "div", @doc
       output_node["class"] = "legacy oembed youtube inline"
@@ -243,10 +245,12 @@ class InlineRenderer
       return nil
     end
 
-    video = Video.where(el_id: @id).first
-    if video.nil?
+    video = Video.where(el_id: @id)
+    if video.empty?
       puts "Warning: video record #{@id} not found" unless @@SUPPRESS_WARNINGS
       return nil
+    else
+      video = video.first
     end
 
     out = generate_node_from_youtube_url video.el_url
