@@ -21,7 +21,7 @@ class DataProcessor
   end
 
   def print_record_count(i)
-    puts "Imported #{i} records \n" if i % 1000 == 0
+    #puts "Imported #{i} records \n" if i % 1000 == 0
   end
 
   def build_complete_users_table
@@ -165,23 +165,79 @@ class DataProcessor
     return if inlines.empty?
 
     inlines.each do |inline|
-      puts inline["type"]
+      renderer = InlineRenderer.new(inline, parsed)
+      replacement = renderer.new_node
+      inline.replace replacement unless replacement.nil?
+
+      puts s.el_id if inline["type"] == "audioclip"
     end
 
-    puts "\n"
+    #s.el_story = parsed.to_html
 
   end
 
 end
 
 class InlineRenderer
-  def initialize(obj)
+  @@SUPRESS_WARNINGS = true
+  def initialize(cur_node, doc)
+    @type = cur_node["type"] || ""
+    @align = cur_node["align"] || ""
+    @class = cur_node["class"] || ""
+    @height = cur_node["height"] || ""
+    @width = cur_node["width"] || ""
+    @id = cur_node["id"] || ""
+    @title = cur_node["title"] || ""
+
+    @cur_node = cur_node
+    @doc = doc
+  end
+
+  def new_node
+    begin
+      send("render_#{@type}")
+    rescue NoMethodError
+      puts "Warning: no renderer for #{@type} \n" unless @@SUPRESS_WARNINGS
+      nil
+    end
+  end
+
+  private
+
+  def render_oembed
+    #worry about the youtube embeds. there's one that's a tinypic that I'm okay with losing
+    if @cur_node.content.include? "youtube"
+      #transform the URL into the typical youtube structure, just for safety
+      id_regex = /v=(\w|-)*/
+      id = id_regex.match(@cur_node.content)[0]
+
+      output_node = Nokogiri::XML::Node.new "div", @doc
+      output_node["class"] = "legacy oembed youtube inline"
+      output_node.content = "\nhttp://youtube.com/watch?#{id}\n"
+    else
+      #just remove the odd tinypic node
+      nil
+    end
 
   end
 
-  def new_format
+  def render_embedded
+    if @id.nil?
+      return nil
+    end
 
+    embed = Embedded.where(el_id: @id).first
+    embed_node = Nokogiri::HTML::DocumentFragment.parse embed.el_embedded_object 
+    output_node = Nokogiri::XML::Node.new "div", @doc
+    output_node["class"] = "legacy embedded #{embed.el_embedded_type_slug} inline".squeeze(" ")
+    output_node << embed_node
   end
+
+  def render_audioclip
+    puts "this is used"
+    nil
+  end
+  
 end
 
 DataProcessor.instance.process!
