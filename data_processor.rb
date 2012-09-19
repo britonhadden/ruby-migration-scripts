@@ -169,9 +169,9 @@ class DataProcessor
       renderer = InlineRenderer.new(inline, parsed)
       replacement = renderer.new_node
       inline.replace replacement unless replacement.nil?
-      #puts parsed if inline["type"] == "video"
     end
 
+    #s.has_inlines = true
     #s.el_story = parsed.to_html
 
   end
