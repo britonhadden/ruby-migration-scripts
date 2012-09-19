@@ -1,5 +1,6 @@
 require File.expand_path(File.join( 'config','environment.rb') )
 require File.expand_path(File.join( 'tables', 'categories.rb') )
+require File.expand_path(File.join( 'tables', 'audioclips.rb') )
 require 'set'
 require 'nokogiri'
 
@@ -168,8 +169,7 @@ class DataProcessor
       renderer = InlineRenderer.new(inline, parsed)
       replacement = renderer.new_node
       inline.replace replacement unless replacement.nil?
-
-      puts s.el_id if inline["type"] == "audioclip"
+      #puts parsed if inline["type"] == "video"
     end
 
     #s.el_story = parsed.to_html
@@ -179,7 +179,7 @@ class DataProcessor
 end
 
 class InlineRenderer
-  @@SUPRESS_WARNINGS = true
+  @@SUPPRESS_WARNINGS = false
   def initialize(cur_node, doc)
     @type = cur_node["type"] || ""
     @align = cur_node["align"] || ""
@@ -197,7 +197,7 @@ class InlineRenderer
     begin
       send("render_#{@type}")
     rescue NoMethodError
-      puts "Warning: no renderer for #{@type} \n" unless @@SUPRESS_WARNINGS
+      puts "Warning: no renderer for #{@type} \n" unless @@SUPPRESS_WARNINGS
       nil
     end
   end
@@ -208,17 +208,49 @@ class InlineRenderer
     #worry about the youtube embeds. there's one that's a tinypic that I'm okay with losing
     if @cur_node.content.include? "youtube"
       #transform the URL into the typical youtube structure, just for safety
+
+      generate_node_from_youtube_url @cur_node.content
+    else
+      #just remove the odd tinypic node
+      puts "Warning: ignoring unrenderable oembed" unless @@SUPPRESS_WARNINGS
+      nil
+    end
+
+  end
+
+  def generate_node_from_youtube_url(url)
       id_regex = /v=(\w|-)*/
-      id = id_regex.match(@cur_node.content)[0]
+      id = id_regex.match(url)[0]
+
+      if id.nil?
+        alt_id_regex = /\/v\/(\w)*\?/
+        id = al_id_regex.match(url)[0]
+      end
+
+      if id.nil?
+        puts "Warning: unable to parse #{url}" unless @@SUPPRESS_WARNINGS
+        return nil
+      end
 
       output_node = Nokogiri::XML::Node.new "div", @doc
       output_node["class"] = "legacy oembed youtube inline"
       output_node.content = "\nhttp://youtube.com/watch?#{id}\n"
-    else
-      #just remove the odd tinypic node
-      nil
+      output_node
+  end
+
+  def render_video
+    if @id.nil?
+      return nil
     end
 
+    video = Video.where(el_id: @id).first
+    if video.nil?
+      puts "Warning: video record #{@id} not found" unless @@SUPPRESS_WARNINGS
+      return nil
+    end
+
+    out = generate_node_from_youtube_url video.el_url
+    out
   end
 
   def render_embedded
@@ -227,6 +259,11 @@ class InlineRenderer
     end
 
     embed = Embedded.where(el_id: @id).first
+    if embed.nil?
+      puts "Warning: Embed #{@id} not found" unless @@SUPPRESS_WARNINGS
+      return nil
+    end
+
     embed_node = Nokogiri::HTML::DocumentFragment.parse embed.el_embedded_object 
     output_node = Nokogiri::XML::Node.new "div", @doc
     output_node["class"] = "legacy embedded #{embed.el_embedded_type_slug} inline".squeeze(" ")
@@ -234,10 +271,35 @@ class InlineRenderer
   end
 
   def render_audioclip
-    puts "this is used"
-    nil
+    if @id.nil?
+      return nil
+    end
+
+    if AUDIOCLIPS_TABLE[@id].nil?
+      puts "Warning: Audioclip #{@id} not found" unless @@SUPPRESS_WARNINGS
+      return nil
+    end
+    embed_node = Nokogiri::HTML::DocumentFragment.parse AUDIOCLIPS_TABLE[@id]
+
+    output_node = Nokogiri::XML::Node.new "div", @doc
+    output_node["class"] = "legacy embedded audioclip inline".squeeze(" ")
+    output_node << embed_node
   end
-  
+
+  def render_text
+    output_node = Nokogiri::XML::Node.new "div", @doc
+    output_node["class"] = "legacy text inline".squeeze(" ")
+
+    unless @title.empty?
+      title_node = Nokogiri::XML::Node.new "h1", @doc
+      title_node.content = @title
+      output_node << title_node
+    end
+
+    @cur_node.children.each { |child| output_node << child.clone }
+
+    output_node
+  end
 end
 
 DataProcessor.instance.process!
