@@ -22,7 +22,7 @@ class DataProcessor
   end
 
   def print_record_count(i)
-    #puts "Imported #{i} records \n" if i % 1000 == 0
+    puts "Imported #{i} records \n" if i % 1000 == 0
   end
 
   def build_complete_users_table
@@ -166,7 +166,7 @@ class DataProcessor
     return if inlines.empty?
 
     inlines.each do |inline|
-      renderer = InlineRenderer.new(inline, parsed)
+      renderer = InlineRenderer.new(inline, parsed, s.el_id)
       replacement = renderer.new_node
       inline.replace replacement unless replacement.nil?
     end
@@ -180,7 +180,7 @@ end
 
 class InlineRenderer
   @@SUPPRESS_WARNINGS = false
-  def initialize(cur_node, doc)
+  def initialize(cur_node, doc, story_id)
     @type = cur_node["type"] || ""
     @align = cur_node["align"] || ""
     @class = cur_node["class"] || ""
@@ -188,6 +188,8 @@ class InlineRenderer
     @width = cur_node["width"] || ""
     @id = cur_node["id"] || ""
     @title = cur_node["title"] || ""
+
+    @story_id = story_id
 
     @cur_node = cur_node
     @doc = doc
@@ -304,6 +306,54 @@ class InlineRenderer
 
     output_node
   end
+
+  def render_photo
+    if @id.nil?
+      return nil
+    end
+
+    photo = Photo.where(el_id: @id)
+    if photo.length == 0
+      puts "Warning: Photo #{@id} not found" unless @@SUPPRESS_WARNINGS
+      return nil
+    end
+
+    #record that this story uses the photo as an inline. this prevents it from being thrown
+    #out when we drop duplicates
+    photo = photo.first
+    photo.used_in ||= []
+    photo.used_in << @story_id
+    photo.save!
+   
+    #insert a text node that just renders a shortcode that will be handled by a plugin
+    output_node = Nokogiri::XML::Text.new "", @doc
+    output_node.content =   %Q! \n[ydn-legacy-photo-inline id="#{photo.wp_id}" ]\n\n !
+
+    output_node
+  end
+
+  def render_photothumb
+    render_photo
+  end
+
+  def render_photogallery
+    if @id.nil?
+      return nil
+    end
+
+    gallery = Gallery.where(el_id: @id)
+    if gallery.length == 0
+      puts "Warning: Gallery #{@id} not found" unless @@SUPPRESS_WARNINGS
+      return nil
+    end
+    gallery = gallery.first
+
+    output_node = Nokogiri::XML::Text.new "", @doc
+    output_node.content = %Q!\n[showcase id="#{gallery.wp_id}"]\n\n!
+
+    output_node
+  end
+
 end
 
 DataProcessor.instance.process!

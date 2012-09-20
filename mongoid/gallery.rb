@@ -19,4 +19,5 @@ class Gallery
   field :el_slug
   field :el_status
   field :el_template_prefix
+  field :wp_id
 end

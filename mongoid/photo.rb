@@ -30,6 +30,7 @@ class Photo
   field :el_width
   field :wp_sites, type: Array, default: []
   field :used_in, type: Array, default: []
+  field :wp_id
 
   def bylines
     first_name = el_photographer_first_name || ""
