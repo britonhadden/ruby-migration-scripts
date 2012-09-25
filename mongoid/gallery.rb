@@ -20,4 +20,5 @@ class Gallery
   field :el_status
   field :el_template_prefix
   field :wp_id
+  field :wp_sites, type: Array, default: ['main']
 end

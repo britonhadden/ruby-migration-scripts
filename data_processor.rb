@@ -13,8 +13,10 @@ class DataProcessor
 
 
   def process!
-   # build_complete_users_table
-     run_main_story_loop
+     #build_complete_users_table
+     #run_main_story_loop
+     #delete_duplicate_photos
+     photo_gallery_cleanup
   end
 
   def print_header(val)
@@ -171,9 +173,30 @@ class DataProcessor
       inline.replace replacement unless replacement.nil?
     end
 
-    #s.has_inlines = true
-    #s.el_story = parsed.to_html
+    s.has_inlines = true
+    s.el_story = parsed.to_html
 
+  end
+
+  def delete_duplicate_photos
+    puts "Please run the drop photos command.  Are you done?"
+    gets.chomp
+  end
+
+  def photo_gallery_cleanup
+    #make sure that all Galleryphoto's have the same wp_sites as the Gallery itself
+    
+    Gallery.each do |gallery|
+
+      Galleryphoto.where( { el_gallery_id: gallery.el_id } ).each do |galleryphoto|
+        photo = Photo.where( { el_id: galleryphoto.el_photo_id })
+        continue if photo.length == 0
+        photo = photo.first
+        photo.wp_sites += gallery.wp_sites
+
+        photo.save!
+      end
+    end
   end
 
 end
@@ -323,11 +346,18 @@ class InlineRenderer
     photo = photo.first
     photo.used_in ||= []
     photo.used_in << @story_id
+
+    #record the site if possible
+    story = Story.where(el_id: @story_id)
+    if story.length != 0
+      photo.wp_sites << story.first.wp_site
+    end
+
     photo.save!
    
     #insert a text node that just renders a shortcode that will be handled by a plugin
     output_node = Nokogiri::XML::Text.new "", @doc
-    output_node.content =   %Q! \n[ydn-legacy-photo-inline id="#{photo.wp_id}" ]\n\n !
+    output_node.content =   %Q! \n[ydn-legacy-photo-inline el_id="#{photo.el_id}" ]\n\n !
 
     output_node
   end
@@ -348,11 +378,21 @@ class InlineRenderer
     end
     gallery = gallery.first
 
+    #record the site if possible
+    story = Story.where(el_id: @story_id)
+    if story.length != 0
+      gallery.wp_sites << story.first.wp_site
+    end
+
+    gallery.save!
+ 
+
     output_node = Nokogiri::XML::Text.new "", @doc
-    output_node.content = %Q!\n[showcase id="#{gallery.wp_id}"]\n\n!
+    output_node.content = %Q!\n[showcase el_id="#{gallery.el_id}"]\n\n!
 
     output_node
   end
+
 
 end
 
