@@ -22,6 +22,7 @@ CATEGORY_TABLE = {
 	"/Blogs/Cross Campus/Town-gown" => [ "tag", "Town-gown", "cross-campus" ],
 	"/Blogs/Cross Campus/Obituary" => [ "tag", "Obituary", "cross-campus" ],
 	"/Opinion" => [ "cat", "Opinion", "main" ],
+  "/Opinion/OpEd Live" => ["cat", "Opinion: OpEd Live", "main"],
 	"/Opinion/The News' Views" => [ "cat", "Opinion: The News' Views", "main" ],
 	"/Blogs/Cross Campus" => [ "", "", "cross-campus" ],
 	"/Blogs/Cross Campus/Opinion" => [ "cat", "Opinion", "cross-campus" ],

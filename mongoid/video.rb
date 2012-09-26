@@ -1,4 +1,5 @@
 class Video
+  @@MAX_NUM_CATEGORIES = 9
   include Mongoid::Document
   store_in collection: :video
   field :el_caption
@@ -37,6 +38,8 @@ class Video
   field :el_videographer_last_name
   field :el_videographer_records_audioclips
   field :el_width
+  field :wp_categories, type: Array, default: []
+  field :wp_site, type: String, default: "main"
 
   def bylines
     out = []
@@ -63,4 +66,13 @@ class Video
 
     out.compact #prune any nils
   end
+  
+  def categories
+    out = (1..@@MAX_NUM_CATEGORIES).inject([]) do |init,indx| 
+      init <<  self.send( "el_categories_#{indx}_path" )
+    end
+    out.compact
+  end
+
+
 end

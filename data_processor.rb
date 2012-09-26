@@ -13,10 +13,11 @@ class DataProcessor
 
 
   def process!
-     #build_complete_users_table
-     #run_main_story_loop
-     #delete_duplicate_photos
-     photo_gallery_cleanup
+     build_complete_users_table
+     run_main_story_loop
+     delete_duplicate_photos
+     set_default_sites
+     run_main_video_loop
   end
 
   def print_header(val)
@@ -95,8 +96,8 @@ class DataProcessor
 
     i = 0 
     Story.each do |s|
-#      load_wp_categories s
-#      process_lead_photos s
+      load_wp_categories s
+      process_lead_photos s
       transform_inlines s
       
       s.save!
@@ -183,21 +184,50 @@ class DataProcessor
     gets.chomp
   end
 
-  def photo_gallery_cleanup
-    #make sure that all Galleryphoto's have the same wp_sites as the Gallery itself
-    
+  def set_default_sites
+    #if galleries/photos don't have wp_sites set after all the processing, then
+    #assume main
+    print_header "Setting default sites"
+    i = 0 
+    Photo.each do |p|
+      set_default_sites_for_obj p
+
+      i += 1
+      print_record_count i
+    end
+
     Gallery.each do |gallery|
+      set_default_sites_for_obj gallery
 
-      Galleryphoto.where( { el_gallery_id: gallery.el_id } ).each do |galleryphoto|
-        photo = Photo.where( { el_id: galleryphoto.el_photo_id })
-        continue if photo.length == 0
-        photo = photo.first
-        photo.wp_sites += gallery.wp_sites
-
-        photo.save!
-      end
+      i += 1
+      print_record_count i
     end
   end
+
+  def set_default_sites_for_obj obj
+    if obj.wp_sites.nil? || obj.wp_sites.empty?
+      obj.wp_sites = ['main']
+      obj.save!
+    end
+  end
+
+
+  def run_main_video_loop
+    print_header "Running video loop"
+
+    i = 0
+    Video.each do |v|
+      load_wp_categories v
+      if v.wp_site.nil? || v.wp_site.empty?
+        v.wp_site = "main"
+      end
+
+      v.save!
+      i += 1
+      print_record_count i
+    end
+  end
+
 
 end
 
