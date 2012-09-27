@@ -4,6 +4,24 @@ require File.expand_path(File.join( 'tables', 'audioclips.rb') )
 require 'set'
 require 'nokogiri'
 
+#UTILITY METHODS
+def extract_youtube_url url
+      id_regex = /v=((\w|-)*)/
+      id = id_regex.match(url)
+
+      if id.nil?
+        alt_id_regex = /v\/((\w|-)*)\??/
+        id = alt_id_regex.match(url)
+      end
+
+      if id.nil?
+        nil
+      else
+        id =  id.to_a[1]
+        "http://youtube.com/watch?v=#{id}"
+      end
+end
+
 class DataProcessor
   include Singleton
   #this class handles ALL of the data cleaning processes
@@ -13,11 +31,11 @@ class DataProcessor
 
 
   def process!
-     build_complete_users_table
-     run_main_story_loop
-     delete_duplicate_photos
-     set_default_sites
-     run_main_video_loop
+   build_complete_users_table
+   run_main_story_loop
+   delete_duplicate_photos
+   set_default_sites
+   run_main_video_loop
   end
 
   def print_header(val)
@@ -221,6 +239,7 @@ class DataProcessor
       if v.wp_site.nil? || v.wp_site.empty?
         v.wp_site = "main"
       end
+      v.el_url = extract_youtube_url v.el_url
 
       v.save!
       i += 1
@@ -274,24 +293,16 @@ class InlineRenderer
   end
 
   def generate_node_from_youtube_url(url)
-      id_regex = /v=((\w|-)*)/
-      id = id_regex.match(url)
-
-      if id.nil?
-        alt_id_regex = /v\/((\w)*)\??/
-        id = alt_id_regex.match(url)
-      end
-
-      if id.nil?
+      youtube_url = extract_youtube_url url
+      if youtube_url.nil?
         puts "Warning: unable to parse #{url}" unless @@SUPPRESS_WARNINGS
         return nil
       end
 
-      id =  id.to_a[1]
 
       output_node = Nokogiri::XML::Node.new "div", @doc
       output_node["class"] = "legacy oembed youtube inline"
-      output_node.content = "\nhttp://youtube.com/watch?#{id}\n"
+      output_node.content = "\n#{youtube_url}\n"
       output_node
   end
 
