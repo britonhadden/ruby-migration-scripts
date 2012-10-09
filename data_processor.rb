@@ -80,10 +80,18 @@ class DataProcessor
     #now for the harder part, build a bunch of "fake" users based on the bylines we have
     #we need to uniqueify out bylines first
     unique_bylines = Set.new 
-    
+
+    i = 0
     #we're going to do the same thing to Users, Videos, and Photos, so build one proc to be reused
+    #
     byline_grabber = Proc.new do |obj|
-      obj.bylines.each { |byline| unique_bylines << byline }
+      bylines = obj.bylines
+      bylines.each { |byline| unique_bylines << byline }
+      #save the formatted bylines so that they can be accessed from the WP importer 
+      obj.computed_bylines = bylines
+      obj.save!
+      i += 1
+      print_record_count i
     end
 
     print_header "Building unique author names"
@@ -91,6 +99,7 @@ class DataProcessor
     Story.each(&byline_grabber)
     Photo.each(&byline_grabber)
 
+    i = 0
     print_header "Importing those authors" 
     #now actually build these guys
     unique_bylines.each do |u| 

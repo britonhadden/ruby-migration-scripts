@@ -31,6 +31,7 @@ class Photo
   field :wp_sites, type: Array, default: []
   field :used_in, type: Array, default: []
   field :wp_id
+  field :computed_bylines, type: Array, default: []
 
   def bylines
     first_name = el_photographer_first_name || ""

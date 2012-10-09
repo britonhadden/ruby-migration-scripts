@@ -40,6 +40,7 @@ class Video
   field :el_width
   field :wp_categories, type: Array, default: []
   field :wp_site, type: String, default: "main"
+  field :computed_bylines, type: Array, default: []
 
   def bylines
     out = []
